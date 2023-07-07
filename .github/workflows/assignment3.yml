@@ -1,0 +1,143 @@
+name: assignment3
+on:
+  push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: create log file
+      run: | 
+        echo $(date -Iminutes) > /tmp/log
+        echo Danny Yellin >> /tmp/log
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Build and export
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./Dockerfile
+        tags: meal-svc:danny_yellin
+        outputs: type=docker,dest=/tmp/image.tar
+    - name: see if image.tar is in /tmp
+      run: ls /tmp
+    - name: update log file on success
+      if: success()
+      run: echo image successfully built >> /tmp/log
+    - name: update log file on failure
+      if: failure()
+      run: echo image not able to be built  >> /tmp/log
+    - name: Upload meal-svc image
+      uses: actions/upload-artifact@v3
+      with:
+        name: tarball
+        path: /tmp/image.tar
+    - name: Upload log file (always, even on build failure)
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: log
+        path: /tmp/log
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+#    # 1. download image and run it in a container
+    - name: Download image artifact from build job
+      uses: actions/download-artifact@v3
+      with:
+        name: tarball
+        path: /tmp
+    - name: Download log artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: log
+        path: /tmp  # this is directory to put artifact (log)
+    - name: list /tmp directory and cat log
+      run: |
+        ls /tmp
+        cat /tmp/log
+    - name: Load Docker images
+      run: docker load --input /tmp/image.tar
+#      run: docker load --input images/image.tar
+    - name: check meal-svc:danny_yellin image is loaded
+      run: docker image ls
+    - name: run image in container
+      run: docker run -d -p8000:8000 meal-svc:danny_yellin
+    - name: print to log if container was successfully started
+      if: success()
+      run: echo Container up and running >> /tmp/log
+    - name: print to log if container failed to launch
+      if: failure()
+      run: echo Container failed to run >> /tmp/log
+    - name: Check container is running
+      run: docker ps
+#    # 2. set up python and pytest environment
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest # not using yet lint checker like ruff
+        pip install requests
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#      # 3. run pytest tests and upload the results
+    - name: Test with pytest  # additionally use ruff or other lint checkers
+      run: |
+        cd tests
+        pytest -v assn3_tests.py > test_results.txt
+    - name:
+      if: success()
+      run: echo tests succeeded >> /tmp/log
+    - name:
+      if: failure()
+      run: echo tests failed >> /tmp/log
+    - name: upload test results
+      if: always()  # always perform this step even if tests fail, to see results
+      uses: actions/upload-artifact@v3
+      with:
+        name: assn3_test_results
+        path: tests/test_results.txt
+    - name: Upload log file (always, even on build failure)
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: log
+        path: /tmp/log
+  query:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Download image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: tarball
+        path: /tmp
+    - name: Load Docker image
+      run: docker load --input /tmp/image.tar
+    - name: run image in container
+      run: docker run -d -p8000:8000 meal-svc:danny_yellin
+    - name: read query.txt file from current directory and produce response file in /tmp/response.txt
+      run: python solver-original.py
+    - name: Upload resp file
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: response
+        path: /tmp/response.txt
+#    - name: Download log artifact
+#      uses: actions/download-artifact@v3
+#      with:
+#        name: log
+#        path: /tmp
+#    - name: Upload log file (always, even on build failure)
+#      if: always()
+#      uses: actions/upload-artifact@v3
+#      with:
+#        name: log
+#        path: /tmp/log
