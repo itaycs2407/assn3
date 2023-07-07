@@ -8,7 +8,7 @@ jobs:
     - name: create log file
       run: | 
         echo $(date -Iminutes) > /tmp/log
-        echo Danny Yellin >> /tmp/log
+        echo Dor and Aviv >> /tmp/log
     - name: Checkout
       uses: actions/checkout@v3
     - name: Set up Docker Buildx
@@ -18,7 +18,7 @@ jobs:
       with:
         context: .
         file: ./Dockerfile
-        tags: meal-svc:danny_yellin
+        tags: meal-svc:dor_aviv
         outputs: type=docker,dest=/tmp/image.tar
     - name: see if image.tar is in /tmp
       run: ls /tmp
@@ -61,10 +61,10 @@ jobs:
     - name: Load Docker images
       run: docker load --input /tmp/image.tar
 #      run: docker load --input images/image.tar
-    - name: check meal-svc:danny_yellin image is loaded
+    - name: check meal-svc:dor_aviv image is loaded
       run: docker image ls
     - name: run image in container
-      run: docker run -d -p8000:8000 meal-svc:danny_yellin
+      run: docker run -d -p8000:8000 meal-svc:dor_aviv
     - name: print to log if container was successfully started
       if: success()
       run: echo Container up and running >> /tmp/log
@@ -121,7 +121,7 @@ jobs:
     - name: Load Docker image
       run: docker load --input /tmp/image.tar
     - name: run image in container
-      run: docker run -d -p8000:8000 meal-svc:danny_yellin
+      run: docker run -d -p8000:8000 meal-svc:dor_aviv
     - name: read query.txt file from current directory and produce response file in /tmp/response.txt
       run: python solver-original.py
     - name: Upload resp file
